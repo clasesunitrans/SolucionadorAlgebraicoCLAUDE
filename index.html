@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solucionador Algebraico Mejorado</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- MathJax for rendering LaTeX -->
+    <script>
+    MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+        },
+        svg: {
+            fontCache: 'global'
+        }
+    };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column; /* Align children vertically */
+        }
+        main {
+            flex-grow: 1; /* Allows main content to grow and push footer down */
+        }
+        /* Custom styles for loading spinner */
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+
+        @-webkit-keyframes spinner {
+            0% { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+
+        @keyframes spinner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <main class="flex items-center justify-center p-4">
+        <div class="w-full max-w-3xl bg-orange-50 rounded-xl shadow-lg p-6 md:p-8">
+            
+            <!-- Header Section -->
+            <div class="text-center border-b pb-4 mb-6">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Solucionador Algebraico</h1>
+                <p class="text-gray-600 mt-2">Soy tu experto en matemáticas. Ingresa una expresión o ecuación para comenzar.</p>
+            </div>
+
+            <!-- Rate Limit Warning -->
+            <div id="rate-limit-warning" class="hidden mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded-r-lg">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-yellow-700">
+                            <strong>Límite de solicitudes:</strong> <span id="requests-remaining">5</span> solicitudes restantes en este minuto.
+                        </p>
+                    </div>
+                </div>
+            </div>
+    
+            <!-- Input Section -->
+            <div class="mb-6">
+                <label for="expression-input" class="block text-lg font-medium text-gray-700 mb-2">Expresión o Ecuación Algebraica:</label>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="expression-input" placeholder="x^3+5x+6=0" maxlength="200" class="flex-grow w-full px-4 py-3 text-lg bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out">
+                    <button id="simplify-button" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition duration-150 ease-in-out shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Resolver
+                    </button>
+                </div>
+                <!-- Validation errors will appear here -->
+                <div id="validation-errors" class="hidden mt-2">
+                    <!-- Dynamic validation messages -->
+                </div>
+            </div>
+    
+            <!-- Results Section -->
+            <div id="results-container" class="space-y-8">
+                <!-- This area will be populated with results by JavaScript -->
+            </div>
+            
+            <!-- Initial Message / Placeholder -->
+            <div id="initial-message" class="text-center text-gray-500 p-8 border-2 border-dashed rounded-lg">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                    <path vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-6m-3 6h.01M9 17h.01M9 14h.01M12 14h.01M15 14h.01M12 17h.01M15 17h.01M15 11h.01M12 11h.01M9 11h.01M4 7v10a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2z" />
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">Esperando una ecuación o expresión</h3>
+                <p class="mt-1 text-sm text-gray-500">Los resultados de la simplificación o solución aparecerán aquí.</p>
+            </div>
+            
+            <!-- Loading Indicator -->
+            <div id="loading-indicator" class="hidden flex-col items-center justify-center text-center text-gray-500 p-8">
+                <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24 mb-4"></div>
+                <h2 class="text-xl font-semibold text-gray-700">Analizando...</h2>
+                <p>Realizando la magia matemática. Por favor, espera.</p>
+            </div>
+    
+            <!-- Error Message -->
+            <div id="error-message" class="hidden text-center text-red-700 bg-red-100 p-4 rounded-lg">
+                 <!-- Error content will be set here -->
+            </div>
+    
+        </div>
+    </main>
+
+    <!-- Copyright Footer -->
+    <footer class="text-center py-4">
+        <p class="text-sm text-gray-600">
+            &copy; <span id="current-year"></span> fmartinezb@gmail.com. Todos los derechos reservados.
+        </p>
+    </footer>
+
+    <script>
+        // Rate limiting variables
+        let requestCount = 0;
+        const MAX_REQUESTS_PER_MINUTE = 5;
+
+        // DOM elements
+        const simplifyButton = document.getElementById('simplify-button');
+        const expressionInput = document.getElementById('expression-input');
+        const resultsContainer = document.getElementById('results-container');
+        const initialMessage = document.getElementById('initial-message');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessage = document.getElementById('error-message');
+        const validationErrors = document.getElementById('validation-errors');
+        const rateLimitWarning = document.getElementById('rate-limit-warning');
+        const requestsRemaining = document.getElementById('requests-remaining');
+
+        // Rate limit functions
+        function checkRateLimit() {
+            if (requestCount >= MAX_REQUESTS_PER_MINUTE) {
+                return false; // Bloquear solicitud
+            }
+            requestCount++;
+            updateRateLimitDisplay();
+            return true; // Permitir solicitud
+        }
+
+        function updateRateLimitDisplay() {
+            const remaining = MAX_REQUESTS_PER_MINUTE - requestCount;
+            requestsRemaining.textContent = remaining;
+            
+            if (remaining <= 2) {
+                rateLimitWarning.classList.remove('hidden');
+            }
+            
+            if (remaining === 0) {
+                simplifyButton.disabled = true;
+                simplifyButton.textContent = 'Límite alcanzado';
+                simplifyButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                simplifyButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            }
+        }
+
+        // Reset rate limit counter every minute
+        setInterval(() => {
+            requestCount = 0;
+            updateRateLimitDisplay();
+            rateLimitWarning.classList.add('hidden');
+            
+            // Re-enable button
+            simplifyButton.disabled = false;
+            simplifyButton.textContent = 'Resolver';
+            simplifyButton.classList.remove('bg-gray-400', 'cursor-not-allowed');
+            simplifyButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+        }, 60000);
+
+        // Validation function
+        function validateMathInput(input) {
+            const validation = {
+                isValid: true,
+                errors: [],
+                warnings: [],
+                suggestions: [],
+                sanitizedInput: input.trim()
+            };
+
+            // 1. Basic Validation
+            if (!input || input.trim().length === 0) {
+                validation.isValid = false;
+                validation.errors.push('La entrada no puede estar vacía.');
+                return validation;
+            }
+
+            if (input.trim().length < 3) {
+                validation.isValid = false;
+                validation.errors.push('La expresión debe tener al menos 3 caracteres.');
+                return validation;
+            }
+
+            if (input.length > 200) {
+                validation.isValid = false;
+                validation.errors.push('La expresión es demasiado larga (máximo 200 caracteres).');
+                return validation;
+            }
+
+            // 2. Character Validation
+            const dangerousChars = /<|>|;|&|script|eval|function|alert|document|window|javascript:/gi;
+            if (dangerousChars.test(input)) {
+                validation.isValid = false;
+                validation.errors.push('La entrada contiene caracteres o términos no permitidos por seguridad.');
+                return validation;
+            }
+
+            // Allow only mathematical characters
+            const allowedPattern = /^[a-zA-Z0-9\s\+\-\*\/\^\(\)\=\.\,\{\}\[\]\_\|√∑∫π∞αβγθλμσφψω]*$/;
+            if (!allowedPattern.test(input)) {
+                validation.isValid = false;
+                validation.errors.push('La entrada contiene caracteres no válidos. Solo se permiten números, letras, operadores matemáticos y paréntesis.');
+                return validation;
+            }
+
+            // 3. Structure Validation
+            const trimmed = input.trim();
+
+            // Check balanced parentheses
+            let parenthesesCount = 0;
+            let brackets = 0;
+            let braces = 0;
+            
+            for (let char of trimmed) {
+                if (char === '(') parenthesesCount++;
+                else if (char === ')') parenthesesCount--;
+                else if (char === '[') brackets++;
+                else if (char === ']') brackets--;
+                else if (char === '{') braces++;
+                else if (char === '}') braces--;
+                
+                if (parenthesesCount < 0 || brackets < 0 || braces < 0) {
+                    validation.isValid = false;
+                    validation.errors.push('Los paréntesis, corchetes o llaves no están balanceados correctamente.');
+                    return validation;
+                }
+            }
+            
+            if (parenthesesCount !== 0 || brackets !== 0 || braces !== 0) {
+                validation.isValid = false;
+                validation.errors.push('Los paréntesis, corchetes o llaves no están balanceados.');
+                return validation;
+            }
+
+            // Check for consecutive operators
+            const consecutiveOps = /[\+\-\*\/\^]{2,}/g;
+            if (consecutiveOps.test(trimmed)) {
+                validation.isValid = false;
+                validation.errors.push('No se permiten operadores matemáticos consecutivos.');
+                return validation;
+            }
+
+            // Check for multiple equals signs
+            const equalsCount = (trimmed.match(/=/g) || []).length;
+            if (equalsCount > 1) {
+                validation.isValid = false;
+                validation.errors.push('Solo se permite un signo de igualdad (=) en una ecuación.');
+                return validation;
+            }
+
+            // 4. Security Validation
+            const dangerousTerms = ['eval', 'function', 'script', 'alert', 'document', 'window', 'constructor', 'prototype'];
+            for (let term of dangerousTerms) {
+                if (trimmed.toLowerCase().includes(term)) {
+                    validation.isValid = false;
+                    validation.errors.push(`Término no permitido detectado: "${term}".`);
+                    return validation;
+                }
+            }
+
+            // 5. Syntax Validation
+            // Cannot start with operators (except minus)
+            if (/^[\+\*\/\^\=]/.test(trimmed)) {
+                validation.isValid = false;
+                validation.errors.push('La expresión no puede comenzar con un operador (excepto el signo negativo -).');
+                return validation;
+            }
+
+            // Cannot end with operators
+            if (/[\+\-\*\/\^\=]$/.test(trimmed)) {
+                validation.isValid = false;
+                validation.errors.push('La expresión no puede terminar con un operador.');
+                return validation;
+            }
+
+            // Check for obvious division by zero
+            if (/\/\s*0(?!\d)/.test(trimmed)) {
+                validation.warnings.push('Se detectó una posible división por cero.');
+            }
+
+            // 6. Suggestions for common patterns
+            if (/\d[a-zA-Z]/.test(trimmed)) {
+                validation.suggestions.push('Considera usar el operador de multiplicación (*) entre números y variables (ej: 2*x en lugar de 2x).');
+            }
+
+            if (/[²³⁴⁵⁶⁷⁸⁹]/.test(trimmed)) {
+                validation.suggestions.push('Considera usar el símbolo ^ para exponentes (ej: x^2 en lugar de x²).');
+            }
+
+            // Clean up the input (basic sanitization)
+            validation.sanitizedInput = trimmed
+                .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+                .replace(/²/g, '^2')
+                .replace(/³/g, '^3');
+
+            return validation;
+        }
+
+        // Function to display validation errors
+        function displayValidationErrors(validation) {
+            validationErrors.innerHTML = '';
+            
+            if (validation.errors.length === 0 && validation.warnings.length === 0 && validation.suggestions.length === 0) {
+                validationErrors.classList.add('hidden');
+                return;
+            }
+            
+            validationErrors.classList.remove('hidden');
+            
+            let html = '';
+            
+            // Errors (red)
+            if (validation.errors.length > 0) {
+                html += `
+                    <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-2 rounded-r-lg">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-red-800">Errores encontrados:</h3>
+                                <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                                    ${validation.errors.map(error => `<li>${error}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Warnings (yellow)
+            if (validation.warnings.length > 0) {
+                html += `
+                    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-2 rounded-r-lg">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-yellow-800">Advertencias:</h3>
+                                <ul class="mt-2 text-sm text-yellow-700 list-disc list-inside">
+                                    ${validation.warnings.map(warning => `<li>${warning}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Suggestions (blue)
+            if (validation.suggestions.length > 0) {
+                html += `
+                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <h3 class="text-sm font-medium text-blue-800">Sugerencias:</h3>
+                                <ul class="mt-2 text-sm text-blue-700 list-disc list-inside">
+                                    ${validation.suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            validationErrors.innerHTML = html;
+        }
+
+        // Real-time validation as user types
+        expressionInput.addEventListener('input', function() {
+            const validation = validateMathInput(this.value);
+            displayValidationErrors(validation);
+        });
+
+        // Main function to handle the simplification process
+        simplifyButton.addEventListener('click', async () => {
+            const expression = expressionInput.value.trim();
+            
+            // Rate limit check
+            if (!checkRateLimit()) {
+                showError('Has alcanzado el límite de solicitudes por minuto. Por favor, espera antes de intentar de nuevo.');
+                return;
+            }
+
+            // Validation
+            const validation = validateMathInput(expression);
+            
+            if (!validation.isValid) {
+                displayValidationErrors(validation);
+                // Decrement request count since we didn't actually make an API call
+                requestCount--;
+                updateRateLimitDisplay();
+                return;
+            }
+
+            // Use sanitized input
+            const cleanExpression = validation.sanitizedInput;
+
+            // Reset UI
+            resultsContainer.innerHTML = '';
+            initialMessage.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            validationErrors.classList.add('hidden');
+            loadingIndicator.classList.remove('hidden');
+            loadingIndicator.classList.add('flex');
+            
+            try {
+                await solveExpression(cleanExpression);
+            } catch (error) {
+                console.error('Solving failed:', error);
+                showError(error.message);
+            } finally {
+                // Hide loading indicator
+                loadingIndicator.classList.add('hidden');
+                loadingIndicator.classList.remove('flex');
+            }
+        });
+
+        // Function to solve expression (extracted from original code)
+        async function solveExpression(expression) {
+            const prompt = `
+                You are an expert math tutor for university students. Your primary task is to either simplify an algebraic expression or solve an algebraic equation, providing a detailed, step-by-step explanation.
+                Your response MUST be a single JSON object, without any markdown formatting.
+
+                Analyze the following user-provided input: "${expression}"
+
+                Follow these rules strictly:
+                1.  First, determine if the input is a valid algebraic problem. If not, set 'isAlgebraic' to false and provide a reason in 'simplifiedExpression'. Do not proceed further.
+                2.  If it is a valid problem, set 'isAlgebraic' to true.
+                3.  **Solving Equations:**
+                    a.  Your primary goal is to find **exact solutions** (integers, fractions, radicals). Avoid numerical approximations unless an exact algebraic solution is impossible.
+                    b.  **For polynomial equations:** First, use the **Rational Root Theorem** to find any rational roots. If a root 'r' is found, use **polynomial division** by (x-r) to simplify the equation. For the resulting quadratic, use the **quadratic formula**.
+                    c.  Find and list **all** solutions, including real and complex roots.
+                4.  **Simplifying Expressions:** If the input is an expression (no '='), simplify it to its most basic form (e.g., factor polynomials, combine rational expressions).
+                5.  **Restrictions:** For any problem with variables in the denominator, your first step must be to state the restrictions that prevent division by zero. Populate the 'restrictions' array with these explanations.
+                6.  **Step-by-Step Process:**
+                    a.  Explain each step of your work clearly and logically in Spanish.
+                    b.  Populate the 'steps' array with each step. Each step object must have an 'explanation' (in Spanish) and the corresponding 'expression' (in LaTeX).
+                7.  **Final Result:**
+                    a.  Populate the 'simplifiedExpression' field with the final result in LaTeX format.
+                    b.  If it's an equation, this field must contain the **complete set of solutions**, separated by commas (e.g., "x = 1, x = -2, x = 3").
+                    c.  If it's an expression, this field contains the simplified expression.
+                8.  **Formatting:** All mathematical notation, in all fields, MUST be in LaTeX.
+            `;
+
+            const schema = {
+                type: "OBJECT",
+                properties: {
+                    "isAlgebraic": { "type": "BOOLEAN" },
+                    "simplifiedExpression": { "type": "STRING" },
+                    "restrictions": {
+                        "type": "ARRAY",
+                        "items": { "type": "STRING" }
+                    },
+                    "steps": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "explanation": { "type": "STRING" },
+                                "expression": { "type": "STRING" }
+                            },
+                            "required": ["explanation", "expression"]
+                        }
+                    }
+                },
+                required: ["isAlgebraic", "simplifiedExpression", "restrictions", "steps"]
+            };
+
+            const result = await callGeminiAPI(prompt, schema);
+            displayResults(result, expression);
+        }
+
+        // Function to call the Gemini API with improved error handling
+        async function callGeminiAPI(prompt, schema) {
+            const apiKey = "AIzaSyCPCQd5dxujlV3lwVODkKsXqCVCSME07Yg"; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: schema
+                }
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!response.ok) {
+                let errorMsg = `La solicitud a la API falló con estado ${response.status}.`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData && errorData.error && errorData.error.message) {
+                        errorMsg = errorData.error.message;
+                    }
+                } catch(e) {
+                    console.error("Could not parse error response body:", e);
+                }
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json();
+            
+            if (result.candidates && result.candidates.length > 0 &&
+                result.candidates[0].content && result.candidates[0].content.parts &&
+                result.candidates[0].content.parts.length > 0) {
+                const jsonText = result.candidates[0].content.parts[0].text;
+                try {
+                    return JSON.parse(jsonText);
+                } catch (e) {
+                    console.error("Failed to parse JSON from API response:", jsonText);
+                    throw new Error("La respuesta del modelo no pudo ser interpretada. No es un JSON válido.");
+                }
+            } else {
+                 console.error("Unexpected API response structure:", result);
+                 if (result.promptFeedback && result.promptFeedback.blockReason) {
+                     throw new Error(`La solicitud fue bloqueada por seguridad: ${result.promptFeedback.blockReason}`);
+                 }
+                 throw new Error("Respuesta inválida de la API. La estructura del contenido no es la esperada.");
+            }
+        }
+        
+        // Function to display results in the UI
+        function displayResults(data, originalExpression) {
+            if (!data.isAlgebraic) {
+                showError('No estoy diseñado para contestar ese tipo de preguntas. Por favor, introduce una expresión o ecuación algebraica válida.');
+                return;
+            }
+            
+            const isEquation = originalExpression.includes('=');
+            const finalTitle = isEquation ? 'Solución Final' : 'Expresión Simplificada Final';
+
+            // Correction logic
+            let finalSolution = data.simplifiedExpression;
+            if (isEquation && data.steps && data.steps.length > 0) {
+                finalSolution = data.steps[data.steps.length - 1].expression;
+            }
+
+            // 1. Final Simplified Expression or Solution
+            const finalResultHTML = `
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-2">${finalTitle}</h2>
+                    <div class="text-2xl md:text-3xl text-blue-800 font-mono py-2">$$${finalSolution}$$</div>
+                </div>
+            `;
+            resultsContainer.insertAdjacentHTML('beforeend', finalResultHTML);
+
+            // 2. Restrictions
+            if (data.restrictions && data.restrictions.length > 0) {
+                const restrictionsHTML = `
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-2">Restricciones</h2>
+                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+                            <p class="text-gray-700 mb-2">Para evitar la división por cero, debemos excluir los valores de las variables que anulan el denominador:</p>
+                            <ul class="list-disc list-inside space-y-2 text-yellow-800">
+                                ${data.restrictions.map(r => `<li>${r}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>`;
+                resultsContainer.insertAdjacentHTML('beforeend', restrictionsHTML);
+            }
+
+            // 3. Step-by-step process
+            if (data.steps && data.steps.length > 0) {
+                const stepsHTML = `
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-3">Procedimiento Paso a Paso</h2>
+                        <ol class="relative border-l border-gray-200 space-y-6 ml-2">
+                            ${data.steps.map((step, index) => `
+                                <li class="ml-6">
+                                    <span class="absolute flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full -left-4 ring-8 ring-white">
+                                        <span class="font-bold text-blue-800">${index + 1}</span>
+                                    </span>
+                                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                      <p class="text-base font-normal text-gray-600 mb-2">${step.explanation}</p>
+                                      <div class="text-xl text-gray-800 font-mono">$${step.expression}$</div>
+                                    </div>
+                                </li>
+                            `).join('')}
+                        </ol>
+                    </div>`;
+                 resultsContainer.insertAdjacentHTML('beforeend', stepsHTML);
+            }
+
+            // Re-render MathJax for the new content
+            if (window.MathJax) {
+                MathJax.typesetPromise([resultsContainer]);
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+            resultsContainer.innerHTML = '';
+            initialMessage.classList.add('hidden');
+        }
+
+        // Allow pressing Enter to submit
+        expressionInput.addEventListener('keyup', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                simplifyButton.click();
+            }
+        });
+
+        // Set the current year in the footer
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+    </script>
+</body>
+</html>
